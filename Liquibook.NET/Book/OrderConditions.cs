@@ -1,6 +1,6 @@
 ﻿namespace Liquibook.NET.Book
 {
-    public enum OrderCondition
+    public enum OrderConditions
     {
         NoConditions = 0,
         AllOrNone = 1,
