@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using Liquibook.NET.Types;
 using DeferredMatches = System.Collections.Generic.List<(Liquibook.NET.Book.ComparablePrice Price, Liquibook.NET.Book.OrderTracker Tracker)>;
 using TrackerMap = System.Collections.Generic.MultiMap<Liquibook.NET.Book.ComparablePrice, Liquibook.NET.Book.OrderTracker>;
+using TrackerVec = System.Collections.Generic.List<Liquibook.NET.Book.OrderTracker>;
 
 namespace Liquibook.NET.Book
 {
     public class OrderBook
     {
-        public List<OrderTracker> TrackerVec { get; set; }
-        public TrackerMap Bids { get; private set; }
-        public TrackerMap Asks { get; private set; }
-        private List<OrderTracker> PendingOrders { get; set; }
+        public TrackerMap Bids { get; private set; } = new TrackerMap();
+        public TrackerMap Asks { get; private set; } = new TrackerMap();
+        public TrackerMap StopBids { get; private set; } = new TrackerMap();
+        public TrackerMap StopAsks { get; private set; } = new TrackerMap();
+        private TrackerVec PendingOrders { get; set; } = new TrackerVec();
         public string Symbol { get; }
         private Price _marketPrice;
 
@@ -28,15 +29,15 @@ namespace Liquibook.NET.Book
                 if (value > oldMarketPrice || oldMarketPrice == Constants.MarketOrderPrice)
                 {
                     var buySide = true;
-                    CheckStopOrders(buySide, value,);
+                    CheckStopOrders(buySide, value, StopBids);
                 }
                 else if (value < oldMarketPrice || oldMarketPrice == Constants.MarketOrderPrice)
                 {
                     var buySide = false;
-                    CheckStopOrders(buySide, value,);
+                    CheckStopOrders(buySide, value, StopAsks);
                 }
             }
-        };
+        }
 
         public OrderBook(string symbol = "UNKNOWN")
         {
@@ -88,9 +89,84 @@ namespace Liquibook.NET.Book
 
             if (order.IsBuy)
             {
-                
+                FindOnMarket(order, out var bid);
+                if (bid != null)
+                {
+                    openQuantity = bid.OpenQuantity;
+                    Bids.Erase(bid);
+                    found = true;
+                }
+            }
+            else
+            {
+                FindOnMarket(order, out var ask);
+                if (ask != null)
+                {
+                    openQuantity = ask.OpenQuantity;
+                    Asks.Erase(ask);
+                    found = true;
+                }
             }
 
+            if (found)
+            {
+                // cancel callback
+                // book update callback
+            }
+            else
+            {
+                //cancel reject callback
+            }
+            //callback now
+        }
+
+        public bool Replace(IOrder order, int sizeDelta, Price newPrice)
+        {
+            var matched = false;
+            var priceChange = newPrice != order.Price;
+            var price = newPrice == Constants.PriceUnchanged ? order.Price : newPrice;
+
+            var market = order.IsBuy ? Bids : Asks;
+
+            if (FindOnMarket(order, out var tracker))
+            {
+                if (sizeDelta < 0 && tracker.OpenQuantity < -sizeDelta)
+                {
+                    sizeDelta = -tracker.OpenQuantity;
+                    if (sizeDelta == 0)
+                    {
+                        //TODO replace reject callback, order already filled
+                        return false;
+                    }
+                }
+                
+                //TODO accept replace callback
+                var newOpenQuantity = tracker.OpenQuantity + sizeDelta;
+                tracker.ChangeQuantity(sizeDelta);
+
+                if (newOpenQuantity == 0)
+                {
+                    //TODO cancel callback
+                    market.Erase(tracker);
+                }
+                else
+                {
+                    market.Erase(tracker);
+                    matched = AddOrder(tracker, price);
+                }
+
+                while (PendingOrders.Any())
+                {
+                    SubmitPendingOrders();
+                }
+                //TODO book update callback
+            }
+            else
+            {
+                // TODO replace reject callback
+            }
+            //TODO callback now
+            return matched;
         }
 
         public bool AddStopOrder(OrderTracker tracker)
@@ -103,11 +179,11 @@ namespace Liquibook.NET.Book
             {
                 if(isBuy)
                 {
-                    //TODO fix me
+                    StopBids.Add(key, tracker);
                 }
                 else
                 {
-                    //todo fix me
+                    StopAsks.Add(key, tracker);
                 }
             }
 
@@ -141,7 +217,6 @@ namespace Liquibook.NET.Book
             return AddOrder(order, orderPrice);
         }
         
-        // TODO FindOnMarket()
         public bool FindOnMarket(IOrder order, out OrderTracker result)
         {
             var key = new ComparablePrice(order.IsBuy, order.Price);
@@ -351,7 +426,7 @@ namespace Liquibook.NET.Book
             return matched;
         }
 
-        public Quantity TryCreateDeferredOrder(OrderTracker inbound, DeferredMatches deferredMatches,
+        public Quantity TryCreateDeferredTrades(OrderTracker inbound, DeferredMatches deferredMatches,
             Quantity maxQuantity, Quantity minQuantity, TrackerMap currentOrders)
         {
             Quantity traded = 0;
@@ -400,7 +475,7 @@ namespace Liquibook.NET.Book
             return traded;
         }
 
-        public Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, Quantity maxQuantity)
+        public Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, int maxQuantity = 0)
         {
             var crossPrice = currentTracker.Order.Price;
 

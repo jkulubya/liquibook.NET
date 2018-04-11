@@ -24,6 +24,23 @@ namespace System.Collections.Generic
             _dictionary.Remove(key);
         }
 
+        public void Erase(T2 item)
+        {
+            var removed = false;
+            foreach (var kvp in _dictionary)
+            {
+                foreach (var innerItem in kvp.Value)
+                {
+                    if(removed) return;
+                    if (Equals(item, innerItem))
+                    {
+                        kvp.Value.Remove(innerItem);
+                        removed = true;
+                    }
+                }
+            }
+        }
+
         public IEnumerable<T1> Keys => _dictionary.Keys;
 
         public List<T2> this[T1 key]
