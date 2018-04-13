@@ -32,6 +32,13 @@ namespace Liquibook.NET.Simple
             }
         }
 
+        public SimpleOrder(bool isBuy, Price price, Quantity quantity)
+        {
+            IsBuy = isBuy;
+            Price = price;
+            OrderQty = quantity;
+        }
+
         public SimpleOrder(bool isBuy, Price price, Quantity quantity, Price stopPrice, OrderConditions conditions)
         {
             IsBuy = isBuy;
@@ -41,7 +48,6 @@ namespace Liquibook.NET.Simple
             Conditions = conditions;
             OrderId = ++LastOrderId;
             State = OrderState.New;
-
         }
 
         public void Fill(Quantity fillQuantity, int fillCost, int fillId)

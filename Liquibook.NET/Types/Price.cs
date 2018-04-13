@@ -2,7 +2,7 @@
 
 namespace Liquibook.NET.Types
 {
-    public struct Price
+    public struct Price : IComparable<Price>
     {
         private readonly int m_value;
 

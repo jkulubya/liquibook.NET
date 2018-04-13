@@ -4,7 +4,7 @@ using Liquibook.NET.Types;
 
 namespace Liquibook.NET.Book
 {
-    public class ComparablePrice
+    public class ComparablePrice : IComparable<ComparablePrice>
     {
         private Price _price { get; set; }
         private bool _buySide { get; set; }
@@ -134,6 +134,13 @@ namespace Liquibook.NET.Book
         {
             //TODO
             return base.ToString();
+        }
+
+        public int CompareTo(ComparablePrice that)
+        {
+            if (this < that) return -1;
+            if (this > that) return 1;
+            return 0;
         }
     }
 }
