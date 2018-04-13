@@ -7,19 +7,24 @@ namespace Liquibook.NET.Book
 {
     public class Depth
     {
-        private const int _size = 5;
+        private readonly int _size;
         private int _lastChange = 0;
-        private int _lastPublishedChange = 0;
+        public int LastPublishedChange { get; private set; } = 0;
         private Quantity _ignoreBidFillQuantity = 0;
         private Quantity _ignoreAskFillQuantity = 0;
         private readonly SortedDictionary<Price, DepthLevel> _excessBidLevels = new SortedDictionary<Price, DepthLevel>();
         private readonly SortedDictionary<Price, DepthLevel> _excessAskLevels =
             new SortedDictionary<Price, DepthLevel>(Comparer<Price>.Create((x, y) => y.CompareTo(x)));
-        private readonly SortedDictionary<Price, DepthLevel> _bidLevels = new SortedDictionary<Price, DepthLevel>();
-        private readonly SortedDictionary<Price, DepthLevel> _askLevels =
+        public SortedDictionary<Price, DepthLevel> Bids { get; } = new SortedDictionary<Price, DepthLevel>();
+        public SortedDictionary<Price, DepthLevel> Asks { get; } =
             new SortedDictionary<Price, DepthLevel>(Comparer<Price>.Create((x, y) => y.CompareTo(x)));
 
-        public bool Changed => _lastChange > _lastPublishedChange;
+        public bool Changed => _lastChange > LastPublishedChange;
+
+        public Depth(int size = 5)
+        {
+            _size = size;
+        }
         
         public void AddOrder(Price price, Quantity quantity, bool isBid)
         {
@@ -144,7 +149,7 @@ namespace Liquibook.NET.Book
         public DepthLevel FindLevel(Price price, bool isBid, bool shouldCreate)
         {
             DepthLevel result;
-            var levels = isBid ? _bidLevels : _askLevels;
+            var levels = isBid ? Bids : Asks;
             
             if (levels.TryGetValue(price, out result))
             {
@@ -212,7 +217,7 @@ namespace Liquibook.NET.Book
 
         private void InsertLevelBefore(DepthLevel level, bool isBid, Price price)
         {
-            var levels = isBid ? _bidLevels : _askLevels;
+            var levels = isBid ? Bids : Asks;
             var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
             var lastLevelPrice = LastLevel(levels);
             
@@ -258,7 +263,7 @@ namespace Liquibook.NET.Book
             else
             {
                 ++_lastChange;
-                var levels = isBid ? _bidLevels : _askLevels;
+                var levels = isBid ? Bids : Asks;
                 var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
 
                 foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
@@ -291,7 +296,7 @@ namespace Liquibook.NET.Book
 
         public void Published()
         {
-            _lastPublishedChange = _lastChange;
+            LastPublishedChange = _lastChange;
         }
     }
 }

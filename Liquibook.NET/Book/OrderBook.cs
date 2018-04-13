@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Liquibook.NET.Events;
 using Liquibook.NET.Types;
 using DeferredMatches = System.Collections.Generic.List<(Liquibook.NET.Book.ComparablePrice Price, Liquibook.NET.Book.OrderTracker Tracker)>;
 using TrackerMap = System.Collections.Generic.MultiMap<Liquibook.NET.Book.ComparablePrice, Liquibook.NET.Book.OrderTracker>;
 using TrackerVec = System.Collections.Generic.List<Liquibook.NET.Book.OrderTracker>;
+using TypedCallback = Liquibook.NET.Book.Callback;
+using Callbacks = System.Collections.Generic.List<Liquibook.NET.Book.Callback>;
 
 namespace Liquibook.NET.Book
 {
@@ -15,6 +18,8 @@ namespace Liquibook.NET.Book
         public TrackerMap StopBids { get; private set; } = new TrackerMap();
         public TrackerMap StopAsks { get; private set; } = new TrackerMap();
         private TrackerVec PendingOrders { get; set; } = new TrackerVec();
+        private Callbacks Callbacks { get; set; } = new Callbacks();
+        private bool HandlingCallbacks { get; set; } = false;
         public string Symbol { get; }
         private Price _marketPrice;
 
@@ -51,23 +56,25 @@ namespace Liquibook.NET.Book
 
             if (order.OrderQty == 0)
             {
-                //TODO rejected order callback
+                Callbacks.Add(Callback.Reject(order, "size must be positive"));
             }
             else
             {
-                //TODO accept order callback
+                var acceptCbIndex = Callbacks.Count;
+                Callbacks.Add(Callback.Accept(order));
                 var inbound = new OrderTracker(order, orderConditions);
                 if (inbound.Order.StopPrice != 0 && AddStopOrder(inbound))
                 {
-                    
+                    // The order has been added to stops
                 }
                 else
                 {
                     matched = SubmitOrder(inbound);
-                    //todo accept order callback with filled quantity
+                    Callbacks[acceptCbIndex].Quantity = inbound.FilledQuantity;
                     if (inbound.ImmediateOrCancel && !inbound.Filled)
                     {
-                        //todo cancel ioc that wasn't immediately filled
+                        //check c++ project
+                        Callbacks.Add(Callback.Cancel(order, 0));
                     }
                 }
 
@@ -75,17 +82,16 @@ namespace Liquibook.NET.Book
                 {
                     SubmitPendingOrders();
                 }
-                
-                //todo book update callback
+                Callbacks.Add(Callback.BookUpdate(this));
             }
-            //todo callback_now();
+            CallbackNow();
             return matched;
         }
 
         public void Cancel(IOrder order)
         {
             var found = false;
-            Quantity openQuantity;
+            Quantity openQuantity = 0;
 
             if (order.IsBuy)
             {
@@ -110,14 +116,14 @@ namespace Liquibook.NET.Book
 
             if (found)
             {
-                // cancel callback
-                // book update callback
+                Callbacks.Add(Callback.Cancel(order, openQuantity));
+                Callbacks.Add(Callback.BookUpdate(this));
             }
             else
             {
-                //cancel reject callback
+                Callbacks.Add(Callback.CancelReject(order, "not found"));
             }
-            //callback now
+            CallbackNow();
         }
 
         public bool Replace(IOrder order, int sizeDelta, Price newPrice)
@@ -135,18 +141,18 @@ namespace Liquibook.NET.Book
                     sizeDelta = -tracker.OpenQuantity;
                     if (sizeDelta == 0)
                     {
-                        //TODO replace reject callback, order already filled
+                        Callbacks.Add(Callback.ReplaceReject(tracker.Order, "order is already filled"));
                         return false;
                     }
                 }
                 
-                //TODO accept replace callback
+                Callbacks.Add(Callback.Replace(order, tracker.OpenQuantity, sizeDelta, price));
                 var newOpenQuantity = tracker.OpenQuantity + sizeDelta;
                 tracker.ChangeQuantity(sizeDelta);
 
                 if (newOpenQuantity == 0)
                 {
-                    //TODO cancel callback
+                    Callbacks.Add(Callback.Cancel(order, 0));
                     market.Erase(tracker);
                 }
                 else
@@ -159,17 +165,17 @@ namespace Liquibook.NET.Book
                 {
                     SubmitPendingOrders();
                 }
-                //TODO book update callback
+                Callbacks.Add(Callback.BookUpdate(this));
             }
             else
             {
-                // TODO replace reject callback
+                Callbacks.Add(Callback.ReplaceReject(order, "not found"));
             }
-            //TODO callback now
+            CallbackNow();
             return matched;
         }
 
-        public bool AddStopOrder(OrderTracker tracker)
+        protected bool AddStopOrder(OrderTracker tracker)
         {
             var isBuy = tracker.Order.IsBuy;
             var key = new ComparablePrice(isBuy, tracker.Order.StopPrice);
@@ -190,7 +196,7 @@ namespace Liquibook.NET.Book
             return isStopped;
         }
 
-        public void CheckStopOrders(bool side, Price price, MultiMap<ComparablePrice, OrderTracker> stops)
+        protected void CheckStopOrders(bool side, Price price, MultiMap<ComparablePrice, OrderTracker> stops)
         {
             var until = new ComparablePrice(side, price);
             foreach (var stop in stops)
@@ -201,7 +207,7 @@ namespace Liquibook.NET.Book
             }
         }
 
-        public void SubmitPendingOrders()
+        protected void SubmitPendingOrders()
         {
             foreach (var pendingOrder in PendingOrders)
             {
@@ -211,13 +217,13 @@ namespace Liquibook.NET.Book
             PendingOrders.Clear();
         }
 
-        public bool SubmitOrder(OrderTracker order)
+        private bool SubmitOrder(OrderTracker order)
         {
             var orderPrice = order.Order.Price;
             return AddOrder(order, orderPrice);
         }
         
-        public bool FindOnMarket(IOrder order, out OrderTracker result)
+        protected bool FindOnMarket(IOrder order, out OrderTracker result)
         {
             var key = new ComparablePrice(order.IsBuy, order.Price);
             var sideMap = order.IsBuy ? Bids : Asks;
@@ -240,7 +246,7 @@ namespace Liquibook.NET.Book
             return false;
         }
 
-        public bool AddOrder(OrderTracker inbound, Price orderPrice)
+        private bool AddOrder(OrderTracker inbound, Price orderPrice)
         {
             var matched = false;
             var order = inbound.Order;
@@ -265,7 +271,7 @@ namespace Liquibook.NET.Book
             return matched;
         }
 
-        public bool CheckDeferredAons(DeferredMatches aons, TrackerMap deferredTrackers, TrackerMap marketTrackers)
+        protected bool CheckDeferredAons(DeferredMatches aons, TrackerMap deferredTrackers, TrackerMap marketTrackers)
         {
             var result = false;
             var ignoredAons = new DeferredMatches();
@@ -285,7 +291,7 @@ namespace Liquibook.NET.Book
             return result;
         }
 
-        public bool MatchOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
+        protected bool MatchOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
             DeferredMatches deferredAons)
         {
             if (inbound.AllOrNone)
@@ -296,7 +302,7 @@ namespace Liquibook.NET.Book
             return MatchRegularOrder(inbound, inboundPrice, currentOrders, deferredAons);
         }
 
-        public bool MatchRegularOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
+        protected bool MatchRegularOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
             DeferredMatches deferredAons)
         {
             var matched = false;
@@ -345,7 +351,7 @@ namespace Liquibook.NET.Book
             return matched;
         }
 
-        public bool MatchAonOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
+        protected bool MatchAonOrder(OrderTracker inbound, Price inboundPrice, TrackerMap currentOrders,
             DeferredMatches deferredAons)
         {
             var matched = false;
@@ -426,7 +432,7 @@ namespace Liquibook.NET.Book
             return matched;
         }
 
-        public Quantity TryCreateDeferredTrades(OrderTracker inbound, DeferredMatches deferredMatches,
+        protected Quantity TryCreateDeferredTrades(OrderTracker inbound, DeferredMatches deferredMatches,
             Quantity maxQuantity, Quantity minQuantity, TrackerMap currentOrders)
         {
             Quantity traded = 0;
@@ -475,7 +481,7 @@ namespace Liquibook.NET.Book
             return traded;
         }
 
-        public Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, int maxQuantity = 0)
+        protected Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, int maxQuantity = 0)
         {
             var crossPrice = currentTracker.Order.Price;
 
@@ -502,12 +508,115 @@ namespace Liquibook.NET.Book
                 inboundTracker.Fill(fillQuantity);
                 currentTracker.Fill(fillQuantity);
                 MarketPrice = crossPrice;
-                
-                //TODO Callbacks
+                var fillFlag = FillFlag.NeitherFilled;
+                if (inboundTracker.OpenQuantity == 0)
+                {
+                    fillFlag = fillFlag | FillFlag.InboundFilled;
+                }
+
+                if (currentTracker.OpenQuantity == 0)
+                {
+                    fillFlag = fillFlag | FillFlag.MatchedFilled;
+                }
+
+                Callbacks.Add(Callback.Fill(inboundTracker.Order, currentTracker.Order, fillQuantity, crossPrice,
+                    fillFlag));
             }
 
             return fillQuantity;
         }
-            
+
+        public void CallbackNow()
+        {
+            if (!HandlingCallbacks)
+            {
+                HandlingCallbacks = true;
+                while (Callbacks.Any())
+                {
+                    var workingCallbacks = Callbacks.ToList();
+                    Callbacks.Clear();
+                    foreach (var callback in workingCallbacks)
+                    {
+                        PerformCallback(callback);
+                    }
+                }
+
+                HandlingCallbacks = false;
+            }
+        }
+        
+        protected virtual void PerformCallback(TypedCallback callback)
+        {
+            switch (callback.Type)
+            {
+                    case CallbackType.OrderFill:
+                        var fillCost = callback.Price * callback.Quantity;
+                        var inboundFilled = (callback.Flag & (FillFlag.InboundFilled | FillFlag.BothFilled)) != 0;
+                        var matchedFilled = (callback.Flag & (FillFlag.MatchedFilled | FillFlag.BothFilled)) != 0;
+                        OnFill(callback.Order, callback.MatchedOrder, callback.Quantity, fillCost, inboundFilled,
+                            matchedFilled);
+                        OnFillEvent?.Invoke(this,
+                            new OnFillEventArgs(callback.Order, callback.MatchedOrder, callback.Quantity, fillCost,
+                                inboundFilled, matchedFilled));
+                        OnTrade(this, callback.Quantity, fillCost);
+                        OnTradeEvent?.Invoke(this, new OnTradeEventArgs(this, callback.Quantity, fillCost));
+                        break;
+                    case CallbackType.OrderAccept:
+                        OnAccept(callback.Order, callback.Quantity);
+                        OnAcceptEvent?.Invoke(this, new OnAcceptEventArgs(callback.Order, callback.Quantity));
+                        break;
+                    case CallbackType.OrderReject:
+                        OnReject(callback.Order, callback.RejectReason);
+                        OnRejectEvent?.Invoke(this, new OnRejectEventArgs(callback.Order, callback.RejectReason));
+                        break;
+                    case CallbackType.OrderCancel:
+                        OnCancel(callback.Order, callback.Quantity);
+                        OnCancelEvent?.Invoke(this, new OnCancelEventArgs(callback.Order, callback.Quantity));
+                        break;
+                    case CallbackType.OrderCancelReject:
+                        OnCancelReject(callback.Order,callback.RejectReason);
+                        OnCancelRejectEvent?.Invoke(this, new OnCancelRejectEventArgs(callback.Order, callback.RejectReason));
+                        break;
+                    case CallbackType.OrderReplace:
+                        OnReplace(callback.Order, callback.Order.OrderQty, callback.Order.OrderQty + callback.Delta,
+                            callback.Price);
+                        OnReplaceEvent?.Invoke(this,
+                            new OnReplaceEventArgs(callback.Order, callback.Order.OrderQty,
+                                callback.Order.OrderQty + callback.Delta, callback.Price));
+                        break;
+                    case CallbackType.OrderReplaceReject:
+                        OnReplaceReject(callback.Order, callback.RejectReason);
+                        OnReplaceRejectEvent?.Invoke(this,
+                            new OnReplaceRejectEventArgs(callback.Order, callback.RejectReason));
+                        break;
+                    case CallbackType.BookUpdate:
+                        OnOrderBookChange();
+                        OnOrderBookChangeEvent?.Invoke(this, EventArgs.Empty);
+                        break;
+                    default:
+                        throw new Exception($"Unexpected callback type {callback.Type}");
+            }
+        }
+        
+        protected virtual void OnAccept(IOrder order, Quantity quantity){}
+        protected virtual void OnReject(IOrder order, string reason){}
+        protected virtual void OnFill(IOrder order, IOrder matchedOrder, Quantity fillQuantity, int fillCost,
+            bool inboundOrderFilled, bool matchedOrderFilled){}
+        protected virtual void OnCancel(IOrder order, Quantity quantity){}
+        protected virtual void OnCancelReject(IOrder order, string reason){}
+        protected virtual void OnReplace(IOrder order, Quantity currentQuantity, Quantity newQuantity, Price newPrice){}
+        protected virtual void OnReplaceReject(IOrder order, string reason){}
+        protected virtual void OnTrade(OrderBook book, Quantity quantity, int cost){}
+        protected virtual void OnOrderBookChange(){}
+
+        protected event EventHandler<OnAcceptEventArgs> OnAcceptEvent;
+        protected event EventHandler<OnRejectEventArgs> OnRejectEvent;
+        protected event EventHandler<OnFillEventArgs> OnFillEvent;
+        protected event EventHandler<OnCancelEventArgs> OnCancelEvent;
+        protected event EventHandler<OnCancelRejectEventArgs> OnCancelRejectEvent;
+        protected event EventHandler<OnReplaceEventArgs> OnReplaceEvent;
+        protected event EventHandler<OnReplaceRejectEventArgs> OnReplaceRejectEvent;
+        protected event EventHandler<OnTradeEventArgs> OnTradeEvent; 
+        protected event EventHandler OnOrderBookChangeEvent;
     }
 }

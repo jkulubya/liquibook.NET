@@ -9,9 +9,9 @@ namespace Liquibook.NET.Book
         Price Price { get; set; }
         Price StopPrice { get; set; }
         Quantity OrderQty { get; set; }
-        bool AllOrNone { get; set; }
-        bool ImmediateOrCancel { get; set; }
-        
+        bool AllOrNone { get; }
+        bool ImmediateOrCancel { get; }
+
         // TODO: investigate methods at bottom of related cpp class
     }
 }
