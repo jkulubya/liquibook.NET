@@ -8,18 +8,18 @@ namespace Liquibook.NET.Book
     public class Depth
     {
         private readonly int _size;
-        private int _lastChange = 0;
+        public int LastChange { get; private set; } = 0;
         public int LastPublishedChange { get; private set; } = 0;
         private Quantity _ignoreBidFillQuantity = 0;
         private Quantity _ignoreAskFillQuantity = 0;
-        private readonly SortedDictionary<Price, DepthLevel> _excessBidLevels = new SortedDictionary<Price, DepthLevel>();
-        private readonly SortedDictionary<Price, DepthLevel> _excessAskLevels =
+        private readonly SortedDictionary<Price, DepthLevel> _excessBidLevels =
             new SortedDictionary<Price, DepthLevel>(Comparer<Price>.Create((x, y) => y.CompareTo(x)));
-        public SortedDictionary<Price, DepthLevel> Bids { get; } = new SortedDictionary<Price, DepthLevel>();
-        public SortedDictionary<Price, DepthLevel> Asks { get; } =
+        private readonly SortedDictionary<Price, DepthLevel> _excessAskLevels = new SortedDictionary<Price, DepthLevel>();
+        public SortedDictionary<Price, DepthLevel> Bids { get; } =
             new SortedDictionary<Price, DepthLevel>(Comparer<Price>.Create((x, y) => y.CompareTo(x)));
+        public SortedDictionary<Price, DepthLevel> Asks { get; } = new SortedDictionary<Price, DepthLevel>();
 
-        public bool Changed => _lastChange > LastPublishedChange;
+        public bool Changed => LastChange > LastPublishedChange;
 
         public Depth(int size = 5)
         {
@@ -31,12 +31,13 @@ namespace Liquibook.NET.Book
             var level = FindLevel(price, isBid, false);
             if (level != null)
             {
+                level.LastChange = ++LastChange;
                 level.AddOrder(quantity);
-                if (!level.IsExcess)
-                {
-                    _lastChange += 1;
-                    level.LastChange = _lastChange;
-                }
+            }
+            else
+            {
+                level = FindLevel(price, isBid, true);
+                level.AddOrder(quantity);
             }
         }
 
@@ -94,7 +95,7 @@ namespace Liquibook.NET.Book
                 }
                 else
                 {
-                    level.LastChange = ++_lastChange;
+                    level.LastChange = ++LastChange;
                 }
             }
 
@@ -115,7 +116,7 @@ namespace Liquibook.NET.Book
                     level.DecreaseQty(Math.Abs(quantityDelta));
                 }
 
-                level.LastChange = ++_lastChange;
+                level.LastChange = ++LastChange;
             }
         }
 
@@ -159,7 +160,22 @@ namespace Liquibook.NET.Book
             if (shouldCreate && levels.Count < _size)
             {
                 result = new DepthLevel(price, false);
+                ++LastChange;
+                result.LastChange = LastChange;
                 levels.Add(price, result);
+                
+                foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
+                {
+                    if (isBid && price > depthLevel.Value.Price)
+                    {
+                        depthLevel.Value.LastChange = LastChange;
+                    }
+
+                    if (!isBid && price < depthLevel.Value.Price)
+                    {
+                        depthLevel.Value.LastChange = LastChange;
+                    }
+                }
                 return result;
             }
 
@@ -220,30 +236,31 @@ namespace Liquibook.NET.Book
             var levels = isBid ? Bids : Asks;
             var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
             var lastLevelPrice = LastLevel(levels);
-            
-            ++_lastChange;
-            level.LastChange = _lastChange;
-            levels.Add(price, level);
-            foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
-            {
-                if (isBid && price > depthLevel.Value.Price)
-                {
-                    depthLevel.Value.LastChange = _lastChange;
-                }
 
-                if (!isBid && price < depthLevel.Value.Price)
-                {
-                    depthLevel.Value.LastChange = _lastChange;
-                }
-            }
+            ++LastChange;
+            level.LastChange = LastChange;
+            levels.Add(price, level);
             
             if (levels.Count > _size)
             {
                 var droppedOutLevel = levels[lastLevelPrice];
                 var newExcessLevel = new DepthLevel(lastLevelPrice, true);
-                newExcessLevel.Set(lastLevelPrice, droppedOutLevel.AggregateQty, droppedOutLevel.OrderCount, _lastChange);
+                newExcessLevel.Set(lastLevelPrice, droppedOutLevel.AggregateQty, droppedOutLevel.OrderCount, LastChange);
                 levels.Remove(lastLevelPrice);
                 excessLevels.Add(lastLevelPrice, newExcessLevel);
+            }
+            
+            foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
+            {
+                if (isBid && price > depthLevel.Value.Price)
+                {
+                    depthLevel.Value.LastChange = LastChange;
+                }
+
+                if (!isBid && price < depthLevel.Value.Price)
+                {
+                    depthLevel.Value.LastChange = LastChange;
+                }
             }
         }
 
@@ -262,7 +279,7 @@ namespace Liquibook.NET.Book
             }
             else
             {
-                ++_lastChange;
+                ++LastChange;
                 var levels = isBid ? Bids : Asks;
                 var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
 
@@ -270,12 +287,12 @@ namespace Liquibook.NET.Book
                 {
                     if (isBid && level.Price > depthLevel.Value.Price)
                     {
-                        depthLevel.Value.LastChange = _lastChange;
+                        depthLevel.Value.LastChange = LastChange;
                     }
 
                     if (!isBid && level.Price < depthLevel.Value.Price)
                     {
-                        depthLevel.Value.LastChange = _lastChange;
+                        depthLevel.Value.LastChange = LastChange;
                     }
                 }
 
@@ -283,20 +300,21 @@ namespace Liquibook.NET.Book
                 
                 if(excessLevels.Count == 0) return;
                 var replacementLevel = excessLevels.First().Value;
-                replacementLevel.LastChange = _lastChange;
+                replacementLevel.LastChange = LastChange;
                 levels[replacementLevel.Price] = replacementLevel;
             }
         }
 
-        private static int LastLevel(SortedDictionary<Price, DepthLevel> levels)
+        private static Price LastLevel(SortedDictionary<Price, DepthLevel> levels)
         {
             var listLength = levels.Count;
-            return levels.ElementAt(listLength).Key;
+            if (listLength == 0) return 0;
+            return levels.ElementAt(listLength - 1).Key;
         }
 
         public void Published()
         {
-            LastPublishedChange = _lastChange;
+            LastPublishedChange = LastChange;
         }
     }
 }
