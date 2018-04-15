@@ -186,12 +186,15 @@ namespace Liquibook.NET.Book
                     if (isBid && x.Key < price)
                     {
                         InsertLevelBefore(x.Value, true, price);
+                        levels.TryGetValue(price, out result);
                         break;
                     }
 
                     if (!isBid && x.Key > price)
                     {
                         InsertLevelBefore(x.Value, false, price);
+                        levels.TryGetValue(price, out result);
+                        break;
                     }
                     
                 }
@@ -238,8 +241,8 @@ namespace Liquibook.NET.Book
             var lastLevelPrice = LastLevel(levels);
 
             ++LastChange;
-            level.LastChange = LastChange;
-            levels.Add(price, level);
+            var newLevel = new DepthLevel(price, false) {LastChange = LastChange};
+            levels.Add(price, newLevel);
             
             if (levels.Count > _size)
             {
