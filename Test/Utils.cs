@@ -1,4 +1,5 @@
-﻿using Liquibook.NET.Book;
+﻿using System;
+using Liquibook.NET.Book;
 using Liquibook.NET.Simple;
 using Liquibook.NET.Types;
 
@@ -68,14 +69,6 @@ namespace Test
             }
 
             return correct;
-        }
-
-        internal static void VerifyFilled(IOrder order, Quantity filledQuantity, int filledCost,
-            OrderConditions conditions = 0)
-        {
-            var expectedFilledQuantity = (order as SimpleOrder)?.FilledQuantity + filledQuantity;
-            var expectedOpenQuantity = (order as SimpleOrder)?.OpenQuantity - expectedFilledQuantity;
-            var expectedFilledCost = (order as SimpleOrder)?.FilledCost + filledCost;
         }
     }
 }
