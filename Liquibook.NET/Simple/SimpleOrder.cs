@@ -39,7 +39,7 @@ namespace Liquibook.NET.Simple
             OrderQty = quantity;
         }
 
-        public SimpleOrder(bool isBuy, Price price, Quantity quantity, Price stopPrice, OrderConditions conditions)
+        public SimpleOrder(bool isBuy, Price price, Quantity quantity, Price stopPrice, OrderConditions conditions = 0)
         {
             IsBuy = isBuy;
             Price = price;

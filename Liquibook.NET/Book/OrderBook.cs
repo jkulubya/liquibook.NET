@@ -26,7 +26,7 @@ namespace Liquibook.NET.Book
         public Price MarketPrice
         {
             get => _marketPrice;
-            private set
+            set
             {
                 var oldMarketPrice = MarketPrice;
                 _marketPrice = value;
@@ -203,7 +203,7 @@ namespace Liquibook.NET.Book
             {
                 if (until < stop.Key) break;
                 PendingOrders.Add(stop.Value);
-                stops.Remove(stop.Key);
+                stops.Erase(stop.Value);
             }
         }
 
@@ -284,7 +284,7 @@ namespace Liquibook.NET.Book
                 result |= matched;
                 if (tracker.Filled)
                 {
-                    deferredTrackers.Remove(aon.Price);
+                    deferredTrackers.Erase(aon.Tracker);
                 }
             }
 
@@ -326,13 +326,13 @@ namespace Liquibook.NET.Book
                             if (traded > 0)
                             {
                                 matched = true;
-                                currentOrders.Remove(currentPrice);
+                                currentOrders.Erase(currentOrderTracker);
                                 inboundQuantity -= traded;
                             }
                         }
                         else
                         {
-                            deferredAons.Add((currentOrder.Key, currentOrder.Value));
+                            deferredAons.Add((currentOrder.Key, currentOrderTracker));
                         }
                     }
                     else
@@ -341,7 +341,7 @@ namespace Liquibook.NET.Book
                         if (traded > 0)
                         {
                             matched = true;
-                            if(currentOrderTracker.Filled) currentOrders.Remove(currentOrder.Key);
+                            if(currentOrderTracker.Filled) currentOrders.Erase(currentOrderTracker);
                             inboundQuantity -= traded;
                         }
                     }
@@ -383,7 +383,7 @@ namespace Liquibook.NET.Book
                                 {
                                     inboundQuantity -= traded;
                                     matched = true;
-                                    currentOrders.Remove(kvp.Key);
+                                    currentOrders.Erase(kvp.Value);
                                 }
                             }
                         }
@@ -418,7 +418,7 @@ namespace Liquibook.NET.Book
 
                             if (currentOrder.Filled)
                             {
-                                currentOrders.Remove(kvp.Key);
+                                currentOrders.Erase(kvp.Value);
                             }
                         }
                     }
@@ -458,7 +458,7 @@ namespace Liquibook.NET.Book
                 }
 
                 foundQuantity += quantity;
-                fills[index] = quantity;
+                fills.Add(quantity);
                 ++index;
             }
 
@@ -468,10 +468,10 @@ namespace Liquibook.NET.Book
                 foreach (var deferredMatch in deferredMatches)
                 {
                     var tracker = deferredMatch.Tracker;
-                    traded = CreateTrade(inbound, tracker, fills[index]);
+                    traded = CreateTrade(inbound, tracker, fills[index - 1]);
                     if (tracker.Filled)
                     {
-                        currentOrders.Remove(deferredMatch.Price);
+                        currentOrders.Erase(deferredMatch.Tracker);
                     }
 
                     ++i;
@@ -481,7 +481,7 @@ namespace Liquibook.NET.Book
             return traded;
         }
 
-        protected Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, int maxQuantity = 0)
+        protected Quantity CreateTrade(OrderTracker inboundTracker, OrderTracker currentTracker, int maxQuantity = -1)
         {
             var crossPrice = currentTracker.Order.Price;
 
@@ -500,8 +500,10 @@ namespace Liquibook.NET.Book
                 return 0;
             }
 
-            Quantity fillQuantity = Math.Min(maxQuantity,
-                Math.Min(inboundTracker.OpenQuantity, currentTracker.OpenQuantity));
+            Quantity fillQuantity = maxQuantity != -1
+                ? Math.Min(maxQuantity,
+                    Math.Min(inboundTracker.OpenQuantity, currentTracker.OpenQuantity))
+                : Math.Min(inboundTracker.OpenQuantity, currentTracker.OpenQuantity);
 
             if (fillQuantity > 0)
             {
