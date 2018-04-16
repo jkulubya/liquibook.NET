@@ -1,21 +1,23 @@
 ﻿// Inspiration -> https://www.dotnetperls.com/multimap
+using System.Collections.Immutable;
+
 namespace System.Collections.Generic
 {
     public sealed class MultiMap<T1, T2> : IEnumerable<KeyValuePair<T1, T2>>
     {
-        private readonly SortedDictionary<T1, List<T2>> _dictionary =
-            new SortedDictionary<T1, List<T2>>();
+        private readonly SortedDictionary<T1, ImmutableList<T2>> _dictionary =
+            new SortedDictionary<T1, ImmutableList<T2>>();
 
         public void Add(T1 key, T2 value)
         {
             if (this._dictionary.TryGetValue(key, out var list))
             {
-                list.Add(value);
+                _dictionary[key] = list.ToImmutableList().Add(value);
             }
             else
             {
-                list = new List<T2> {value};
-                _dictionary[key] = list;
+                list = ImmutableList<T2>.Empty;
+                _dictionary[key] = list.Add(value);
             }
         }
 
@@ -43,13 +45,13 @@ namespace System.Collections.Generic
 
         public IEnumerable<T1> Keys => _dictionary.Keys;
 
-        public List<T2> this[T1 key]
+        public ImmutableList<T2> this[T1 key]
         {
             get
             {
                 if (!_dictionary.TryGetValue(key, out var list))
                 {
-                    list = new List<T2>();
+                    list = ImmutableList<T2>.Empty;
                     _dictionary[key] = list;
                 }
                 return list;
