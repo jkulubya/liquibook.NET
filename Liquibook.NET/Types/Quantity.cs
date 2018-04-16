@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Liquibook.NET.Types
 {
+    [DebuggerDisplay("{m_value, nq}")]
     public struct Quantity
     {
         private readonly int m_value;
