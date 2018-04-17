@@ -1,5 +1,6 @@
 ﻿// Inspiration -> https://www.dotnetperls.com/multimap
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace System.Collections.Generic
 {
@@ -10,14 +11,13 @@ namespace System.Collections.Generic
 
         public void Add(T1 key, T2 value)
         {
-            if (this._dictionary.TryGetValue(key, out var list))
+            if (_dictionary.TryGetValue(key, out var list))
             {
                 _dictionary[key] = list.ToImmutableList().Add(value);
             }
             else
             {
-                list = ImmutableList<T2>.Empty;
-                _dictionary[key] = list.Add(value);
+                _dictionary[key] = ImmutableList<T2>.Empty.Add(value);
             }
         }
 
@@ -28,18 +28,27 @@ namespace System.Collections.Generic
 
         public void Erase(T2 item)
         {
-            var removed = false;
-            foreach (var kvp in _dictionary)
+            T1 keyWhereToRemove = default(T1);
+            var foundIt = false;
+            foreach (var kvp in _dictionary.ToArray())
             {
-                foreach (var innerItem in kvp.Value)
+                if (!foundIt)
                 {
-                    if(removed) return;
-                    if (Equals(item, innerItem))
+                    foreach (var innerItem in kvp.Value)
                     {
-                        kvp.Value.Remove(innerItem);
-                        removed = true;
+                        if (Equals(item, innerItem))
+                        {
+                            keyWhereToRemove = kvp.Key;
+                            foundIt = true;
+                            break;
+                        }
                     }
                 }
+            }
+
+            if (foundIt)
+            {
+                _dictionary[keyWhereToRemove] = _dictionary[keyWhereToRemove].Remove(item);
             }
         }
 
@@ -56,11 +65,18 @@ namespace System.Collections.Generic
                 }
                 return list;
             }
+            set
+            {
+                foreach (var val in value)
+                {
+                    Add(key, val);
+                }
+            }
         }
         
         public IEnumerator<KeyValuePair<T1, T2>> GetEnumerator()
         {
-            foreach (var kvp in _dictionary)
+            foreach (var kvp in _dictionary.ToList())
             {
                 foreach (var val in kvp.Value)
                 {
