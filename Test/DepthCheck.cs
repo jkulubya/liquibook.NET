@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Liquibook.NET.Book;
 using Liquibook.NET.Types;
 
@@ -6,6 +7,8 @@ namespace Test
 {
     public class DepthCheck
     {
+        private int AskIndex { get; set; } = 0;
+        private int BidIndex { get; set; } = 0;
         private Depth Depth { get; set; }
 
         public DepthCheck(Depth depth)
@@ -27,7 +30,39 @@ namespace Test
 
         public bool VerifyBid(Price price, int count, Quantity quantity)
         {
-            throw new NotImplementedException();
+            var result = false;
+            if (Depth.Bids.Count == 0)
+            {
+                if (!(price != 0 || count != 0 || quantity != 0))
+                {
+                    result = true;
+                }
+            }
+            else
+            {
+                result = VerifyDepth(Depth.Bids.ElementAt(BidIndex).Value, price, count, quantity);
+            }
+            ++BidIndex;
+            return result;
+        }
+        
+        public bool VerifyAsk(Price price, int count, Quantity quantity)
+        {
+            var result = false;
+            if (Depth.Asks.Count == 0)
+            {
+                if (!(price != 0 || count != 0 || quantity != 0))
+                {
+                    result = true;
+                }
+            }
+            else
+            {
+                result =  VerifyDepth(Depth.Asks.ElementAt(AskIndex).Value, price, count, quantity);
+
+            }
+            ++AskIndex;
+            return result;
         }
         
         public bool VerifyBidsDone()
@@ -50,9 +85,10 @@ namespace Test
             return true;
         }
 
-        private void Reset()
+        public void Reset()
         {
-            
+            AskIndex = 0;
+            BidIndex = 0;
         }
     }
 }
