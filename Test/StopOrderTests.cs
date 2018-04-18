@@ -108,6 +108,8 @@ namespace Test
                 // Trade at 54 which should trigger order3 which should trade with order 0 at order 0's price
                 Assert.True(Utils.AddAndVerify(book, order6, expectNoMatch, expectNoComplete, OrderConditions.AllOrNone));
                 Assert.True(Utils.AddAndVerify(book, order7, expectMatch, expectComplete, OrderConditions.AllOrNone));
+                fc0.AssertFillSuccess();
+                fc3.AssertFillSuccess();
             }
             Assert.Equal(prc53, book.MarketPrice);
         }
