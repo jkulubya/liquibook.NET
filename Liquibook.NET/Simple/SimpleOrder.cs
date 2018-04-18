@@ -3,15 +3,10 @@ using Liquibook.NET.Types;
 
 namespace Liquibook.NET.Simple
 {
-    public class SimpleOrder : IOrder
+    public class SimpleOrder : Order
     {
-        public bool IsLimit { get; set; }
-        public bool IsBuy { get; set; }
-        public Price Price { get; set; }
-        public Price StopPrice { get; set; }
-        public Quantity OrderQty { get; set; }
-        public bool AllOrNone => ((Conditions & OrderConditions.AllOrNone) != 0);
-        public bool ImmediateOrCancel => ((Conditions & OrderConditions.ImmediateOrCancel) != 0);
+        public override bool AllOrNone => ((Conditions & OrderConditions.AllOrNone) != 0);
+        public override bool ImmediateOrCancel => ((Conditions & OrderConditions.ImmediateOrCancel) != 0);
         public OrderConditions Conditions { get; set; }
         public Quantity FilledQuantity { get; set; } = 0;
         public int FilledCost { get; set; } = 0;

@@ -4,11 +4,11 @@ namespace Liquibook.NET.Book
 {
     public interface IOrder
     {
-        bool IsLimit { get; set; }
-        bool IsBuy { get; set; }
-        Price Price { get; set; }
-        Price StopPrice { get; set; }
-        Quantity OrderQty { get; set; }
+        bool IsLimit { get; }
+        bool IsBuy { get; }
+        Price Price { get; }
+        Price StopPrice { get; }
+        Quantity OrderQty { get; }
         bool AllOrNone { get; }
         bool ImmediateOrCancel { get; }
 
