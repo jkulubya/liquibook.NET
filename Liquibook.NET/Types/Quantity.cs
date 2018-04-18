@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace Liquibook.NET.Types
 {
     [DebuggerDisplay("{m_value, nq}")]
-    public struct Quantity
+    public struct Quantity : IComparable<Quantity>, IEquatable<Quantity>
     {
         private readonly int m_value;
 
@@ -72,7 +72,14 @@ namespace Liquibook.NET.Types
         {
             return m_value;
         }
-        
+
+        public int CompareTo(Quantity other)
+        {
+            if (m_value < other) return -1;
+            if (m_value > other) return 1;
+            return 0;
+        }
+
         public override bool Equals(object obj)
         {
             return m_value == (obj as Quantity?)?.m_value;

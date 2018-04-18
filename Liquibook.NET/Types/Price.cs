@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace Liquibook.NET.Types
 {
     [DebuggerDisplay("{m_value, nq}")]
-    public struct Price : IComparable<Price>
+    public struct Price : IComparable<Price>, IEquatable<Price>
     {
         private readonly int m_value;
 
