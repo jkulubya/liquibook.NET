@@ -38,7 +38,7 @@ namespace Test
         }
 
         internal static bool ReplaceAndVerify(OrderBook orderBook, IOrder order, int sizechange,
-            Price newPrice, OrderState expectedState = OrderState.Accepted,
+            Price newPrice = new Price(), OrderState expectedState = OrderState.Accepted,
             Quantity matchQuantity = new Quantity())
         {
             var expectedOrderQuantity = order.OrderQty + sizechange;
