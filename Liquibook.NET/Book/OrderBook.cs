@@ -425,7 +425,7 @@ namespace Liquibook.NET.Book
                     else
                     {
                         deferredQuantity += currentQuantity;
-                        deferredMatches.Remove((kvp.Key, kvp.Value));
+                        deferredMatches.Add((kvp.Key, kvp.Value));
                     }
                 }
             }
