@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Liquibook.NET", "Liquibook.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{84430E34-DC46-4445-B67C-DFD9899B3DF7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Perf", "Perf\Perf.csproj", "{ED7D3E7D-59CD-4CE1-B955-F93DEC9D7A02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{84430E34-DC46-4445-B67C-DFD9899B3DF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84430E34-DC46-4445-B67C-DFD9899B3DF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84430E34-DC46-4445-B67C-DFD9899B3DF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED7D3E7D-59CD-4CE1-B955-F93DEC9D7A02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED7D3E7D-59CD-4CE1-B955-F93DEC9D7A02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED7D3E7D-59CD-4CE1-B955-F93DEC9D7A02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED7D3E7D-59CD-4CE1-B955-F93DEC9D7A02}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
