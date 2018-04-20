@@ -371,7 +371,7 @@ namespace Liquibook.NET.Book
                 {
                     if (currentQuantity <= inboundQuantity)
                     {
-                        if (inboundQuantity <= currentQuantity + deferredQuantity)
+                        if (inboundQuantity <= (currentQuantity + deferredQuantity))
                         {
                             var maxQuantity = inboundQuantity - currentQuantity;
                             if (maxQuantity == TryCreateDeferredTrades(inbound, deferredMatches, maxQuantity,
@@ -400,7 +400,7 @@ namespace Liquibook.NET.Book
                 }
                 else
                 {
-                    if (inboundQuantity <= currentQuantity + deferredQuantity)
+                    if (inboundQuantity <= (currentQuantity + deferredQuantity))
                     {
                         var traded = TryCreateDeferredTrades(inbound, deferredMatches, inboundQuantity,
                             (inboundQuantity > currentQuantity)
@@ -439,7 +439,6 @@ namespace Liquibook.NET.Book
             var fills = new List<Quantity>(deferredMatches.Capacity);
             Quantity foundQuantity = 0;
 
-            var index = 0;
             foreach (var deferredMatch in deferredMatches)
             {
                 var tracker = deferredMatch.Tracker;
@@ -459,7 +458,6 @@ namespace Liquibook.NET.Book
 
                 foundQuantity += quantity;
                 fills.Add(quantity);
-                ++index;
             }
 
             if (minQuantity <= foundQuantity && foundQuantity <= maxQuantity)
@@ -468,7 +466,7 @@ namespace Liquibook.NET.Book
                 foreach (var deferredMatch in deferredMatches)
                 {
                     var tracker = deferredMatch.Tracker;
-                    traded = CreateTrade(inbound, tracker, fills[index - 1]);
+                    traded += CreateTrade(inbound, tracker, fills[i]);
                     if (tracker.Filled)
                     {
                         currentOrders.Erase(deferredMatch.Tracker);
