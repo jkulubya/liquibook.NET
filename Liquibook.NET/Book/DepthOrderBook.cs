@@ -77,5 +77,19 @@ namespace Liquibook.NET.Book
 
         protected event EventHandler<OnBboChangeEventArgs> OnBboChangeEvent;
         protected event EventHandler<OnDepthChangeEventArgs> OnDepthChangeEvent;
+
+        public void SetBboListener(IBboListener bboListener)
+        {
+            if(bboListener == null) return;
+            OnBboChangeEvent = null;
+            OnBboChangeEvent += bboListener.OnBboChange;
+        }
+
+        public void SetDepthListener(IDepthListener depthListener)
+        {
+            if (depthListener == null) return;
+            OnDepthChangeEvent = null;
+            OnDepthChangeEvent += depthListener.OnDepthChange;
+        }
     }
 }

@@ -31,8 +31,12 @@ namespace Liquibook.NET.Book
             var level = FindLevel(price, isBid, false);
             if (level != null)
             {
-                level.LastChange = ++LastChange;
                 level.AddOrder(quantity);
+                if (!level.IsExcess)
+                {
+                    ++LastChange;
+                }
+                level.LastChange = LastChange;
             }
             else
             {

@@ -1,9 +1,9 @@
-﻿using Liquibook.NET.Types;
+﻿using Liquibook.NET.Events;
 
 namespace Liquibook.NET.Book
 {
     public interface ITradeListener
     {
-        void OnTrade(OrderBook book, Quantity quantity, int cost);
+        void OnTrade(object sender, OnTradeEventArgs args);
     }
 }

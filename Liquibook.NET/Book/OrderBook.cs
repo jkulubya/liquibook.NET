@@ -49,7 +49,7 @@ namespace Liquibook.NET.Book
             Symbol = symbol;
             MarketPrice = Constants.MarketOrderPrice;
         }
-        
+
         public bool Add(IOrder order, OrderConditions orderConditions = OrderConditions.NoConditions)
         {
             var matched = false;
@@ -73,7 +73,6 @@ namespace Liquibook.NET.Book
                     Callbacks[acceptCbIndex].Quantity = inbound.FilledQuantity;
                     if (inbound.ImmediateOrCancel && !inbound.Filled)
                     {
-                        //check c++ project
                         Callbacks.Add(Callback.Cancel(order, 0));
                     }
                 }
@@ -591,7 +590,7 @@ namespace Liquibook.NET.Book
                         break;
                     case CallbackType.BookUpdate:
                         OnOrderBookChange();
-                        OnOrderBookChangeEvent?.Invoke(this, EventArgs.Empty);
+                        OnOrderBookChangeEvent?.Invoke(this, new OnOrderBookChangeEventArgs(this));
                         break;
                     default:
                         throw new Exception($"Unexpected callback type {callback.Type}");
@@ -617,6 +616,39 @@ namespace Liquibook.NET.Book
         protected event EventHandler<OnReplaceEventArgs> OnReplaceEvent;
         protected event EventHandler<OnReplaceRejectEventArgs> OnReplaceRejectEvent;
         protected event EventHandler<OnTradeEventArgs> OnTradeEvent; 
-        protected event EventHandler OnOrderBookChangeEvent;
+        protected event EventHandler<OnOrderBookChangeEventArgs> OnOrderBookChangeEvent;
+        
+        public void SetOrderListener(IOrderListener orderListener)
+        {
+            if(orderListener == null) return;
+            OnAcceptEvent = null;
+            OnRejectEvent = null;
+            OnFillEvent = null;
+            OnCancelEvent = null;
+            OnCancelRejectEvent = null;
+            OnReplaceEvent = null;
+            OnReplaceRejectEvent = null;
+            OnAcceptEvent += orderListener.OnAccept;
+            OnRejectEvent += orderListener.OnReject;
+            OnFillEvent += orderListener.OnFill;
+            OnCancelEvent += orderListener.OnCancel;
+            OnCancelRejectEvent += orderListener.OnCancelReject;
+            OnReplaceEvent += orderListener.OnReplace;
+            OnReplaceRejectEvent += orderListener.OnReplaceReject;
+        }
+
+        public void SetTradeListener(ITradeListener tradeListener)
+        {
+            if(tradeListener == null) return;
+            OnTradeEvent = null;
+            OnTradeEvent += tradeListener.OnTrade;
+        }
+
+        public void SetOrderBookListener(IOrderBookListener orderBookListener)
+        {
+            if (orderBookListener == null) return;
+            OnOrderBookChangeEvent = null;
+            OnOrderBookChangeEvent += orderBookListener.OnOrderBookChange;
+        }
     }
 }

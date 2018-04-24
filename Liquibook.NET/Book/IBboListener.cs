@@ -1,7 +1,9 @@
-﻿namespace Liquibook.NET.Book
+﻿using Liquibook.NET.Events;
+
+namespace Liquibook.NET.Book
 {
     public interface IBboListener
     {
-        void OnBboChange(OrderBook orderBook, Depth depth);
+        void OnBboChange(object sender, OnBboChangeEventArgs args);
     }
 }

@@ -1,15 +1,15 @@
-﻿using Liquibook.NET.Types;
+﻿using Liquibook.NET.Events;
 
 namespace Liquibook.NET.Book
 {
     public interface IOrderListener
     {
-        void OnAccept(IOrder order);
-        void OnReject(IOrder order, string reason);
-        void OnFill(IOrder order, IOrder matchedOrder, Quantity fillQuantity, int fillCost);
-        void OnCancel(IOrder order);
-        void OnCancelReject(IOrder order, string reason);
-        void OnReplace(IOrder order, Quantity sizeDelta, Price newPrice);
-        void OnReplaceReject(IOrder order, string reason);
+        void OnAccept(object sender, OnAcceptEventArgs args);
+        void OnReject(object sender, OnRejectEventArgs args);
+        void OnFill(object sender, OnFillEventArgs args);
+        void OnCancel(object sender, OnCancelEventArgs args);
+        void OnCancelReject(object sender, OnCancelRejectEventArgs args);
+        void OnReplace(object sender, OnReplaceEventArgs args);
+        void OnReplaceReject(object sender, OnReplaceRejectEventArgs args);
     }
 }
