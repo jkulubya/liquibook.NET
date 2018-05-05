@@ -155,36 +155,55 @@ namespace Liquibook.NET.Book
         {
             DepthLevel result;
             var levels = isBid ? Bids : Asks;
-            
-            if (levels.TryGetValue(price, out result))
-            {
-                return result;
-            }
+            var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
 
-            if (shouldCreate && levels.Count < _size)
-            {
-                result = new DepthLevel(price, false);
-                ++LastChange;
-                result.LastChange = LastChange;
-                levels.Add(price, result);
-                
-                foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
-                {
-                    if (isBid && price > depthLevel.Value.Price)
-                    {
-                        depthLevel.Value.LastChange = LastChange;
-                    }
-
-                    if (!isBid && price < depthLevel.Value.Price)
-                    {
-                        depthLevel.Value.LastChange = LastChange;
-                    }
-                }
-                return result;
-            }
+            if (levels.TryGetValue(price, out result)) return result;
+            if (excessLevels.TryGetValue(price, out result)) return result;
 
             if (shouldCreate)
             {
+                if (levels.Count < _size)
+                {
+                    result = new DepthLevel(price, false);
+                    ++LastChange;
+                    result.LastChange = LastChange;
+                    levels.Add(price, result);
+                
+                    foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
+                    {
+                        if (isBid && price > depthLevel.Value.Price)
+                        {
+                            depthLevel.Value.LastChange = LastChange;
+                        }
+
+                        if (!isBid && price < depthLevel.Value.Price)
+                        {
+                            depthLevel.Value.LastChange = LastChange;
+                        }
+                    }
+                    return result;
+                }
+                
+                var lastLevelPrice = LastLevel(levels);
+                if (isBid && price < lastLevelPrice)
+                {
+                    // add to excess bid levels
+                    var newDepthLevel = new DepthLevel(price, true);
+                    excessLevels.Add(price, newDepthLevel);
+                    result = newDepthLevel;
+
+                    return result;
+                }
+                if (!isBid && price > lastLevelPrice)
+                {
+                    // add to excess ask levels
+                    var newDepthLevel = new DepthLevel(price, true);
+                    _excessAskLevels.Add(price, newDepthLevel);
+                    result = newDepthLevel;
+
+                    return result;
+                }
+                
                 foreach (KeyValuePair<Price, DepthLevel> x in levels)
                 {
                     if (isBid && x.Key < price)
@@ -201,37 +220,6 @@ namespace Liquibook.NET.Book
                         break;
                     }
                     
-                }
-            }
-
-            var lastLevelPrice = LastLevel(levels);
-            if (isBid && price < lastLevelPrice)
-            {
-                // add to excess bid levels
-                if (_excessBidLevels.TryGetValue(price, out var x))
-                {
-                    result = x;
-                }
-                else if(shouldCreate)
-                {
-                    var newDepthLevel = new DepthLevel(price, true);
-                    _excessBidLevels.Add(price, newDepthLevel);
-                    result = newDepthLevel;
-                }
-            }
-
-            if (!isBid && price > lastLevelPrice)
-            {
-                // add to excess ask levels
-                if (_excessAskLevels.TryGetValue(price, out var x))
-                {
-                    result = x;
-                }
-                else if (shouldCreate)
-                {
-                    var newDepthLevel = new DepthLevel(price, true);
-                    _excessAskLevels.Add(price, newDepthLevel);
-                    result = newDepthLevel;
                 }
             }
 
