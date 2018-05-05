@@ -60,8 +60,8 @@ namespace Liquibook.NET.Book
             }
             else
             {
-                var acceptCbIndex = Callbacks.Count;
-                Callbacks.Add(Callback.Accept(order));
+                var acceptCb = Callback.Accept(order);
+                Callbacks.Add(acceptCb);
                 var inbound = new OrderTracker(order, orderConditions);
                 if (inbound.Order.StopPrice != 0 && AddStopOrder(inbound))
                 {
@@ -70,7 +70,7 @@ namespace Liquibook.NET.Book
                 else
                 {
                     matched = SubmitOrder(inbound);
-                    Callbacks[acceptCbIndex].Quantity = inbound.FilledQuantity;
+                    acceptCb.Quantity = inbound.FilledQuantity;
                     if (inbound.ImmediateOrCancel && !inbound.Filled)
                     {
                         Callbacks.Add(Callback.Cancel(order, 0));
