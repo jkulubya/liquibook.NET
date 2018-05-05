@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>jkulubya.Liquibook.NET</PackageId>
-    <Version>0.0.3</Version>
-    <Authors>James Kulubya</Authors>
+    <Version>0.0.4</Version>
+    <Authors>@jkulubya</Authors>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
