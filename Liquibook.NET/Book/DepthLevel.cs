@@ -8,7 +8,7 @@ namespace Liquibook.NET.Book
         public Price Price { get; private set; }
         public int OrderCount { get; private set; }
         public Quantity AggregateQty { get; private set; }
-        public bool IsExcess { get; }
+        public bool IsExcess { get; set; }
         public int LastChange { get; set; }
 
         public DepthLevel(Price price, bool isExcess)

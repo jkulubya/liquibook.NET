@@ -208,14 +208,14 @@ namespace Liquibook.NET.Book
                 {
                     if (isBid && x.Key < price)
                     {
-                        InsertLevelBefore(x.Value, true, price);
+                        InsertLevel(price, true);
                         levels.TryGetValue(price, out result);
                         break;
                     }
 
                     if (!isBid && x.Key > price)
                     {
-                        InsertLevelBefore(x.Value, false, price);
+                        InsertLevel(price, false);
                         levels.TryGetValue(price, out result);
                         break;
                     }
@@ -226,78 +226,56 @@ namespace Liquibook.NET.Book
             return result;
         }
 
-        private void InsertLevelBefore(DepthLevel level, bool isBid, Price price)
+        private void InsertLevel(Price price, bool isBid)
         {
             var levels = isBid ? Bids : Asks;
             var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
-            var lastLevelPrice = LastLevel(levels);
+            var sort = isBid ? Comparer<Price>.Create((x, y) => y.CompareTo(x)) : null;
+            var combinedLevels = new SortedDictionary<Price, DepthLevel>(levels, sort);
 
+            excessLevels.ToList().ForEach(x => combinedLevels.Add(x.Key, x.Value));
+            var newLevel = new DepthLevel(price, false);
+            combinedLevels.Add(price, newLevel);
+            levels.Clear();
+            excessLevels.Clear();
             ++LastChange;
-            var newLevel = new DepthLevel(price, false) {LastChange = LastChange};
-            levels.Add(price, newLevel);
-            
-            if (levels.Count > _size)
+            combinedLevels.Take(_size).ToList().ForEach(x =>
             {
-                var droppedOutLevel = levels[lastLevelPrice];
-                var newExcessLevel = new DepthLevel(lastLevelPrice, true);
-                newExcessLevel.Set(lastLevelPrice, droppedOutLevel.AggregateQty, droppedOutLevel.OrderCount, LastChange);
-                levels.Remove(lastLevelPrice);
-                excessLevels.Add(lastLevelPrice, newExcessLevel);
-            }
-            
-            foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
+                if (isBid && price > x.Value.Price) x.Value.LastChange = LastChange;
+                if (!isBid && price < x.Value.Price) x.Value.LastChange = LastChange;
+                x.Value.IsExcess = false;
+                levels.Add(x.Key, x.Value);
+            });
+            combinedLevels.Skip(_size).ToList().ForEach(x =>
             {
-                if (isBid && price > depthLevel.Value.Price)
-                {
-                    depthLevel.Value.LastChange = LastChange;
-                }
-
-                if (!isBid && price < depthLevel.Value.Price)
-                {
-                    depthLevel.Value.LastChange = LastChange;
-                }
-            }
+                x.Value.IsExcess = true;
+                excessLevels.Add(x.Key, x.Value);
+            });
         }
 
-        public void EraseLevel(DepthLevel level, bool isBid)
+        private void EraseLevel(DepthLevel level, bool isBid)
         {
-            if (level.IsExcess)
+            var levels = isBid ? Bids : Asks;
+            var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
+            var sort = isBid ? Comparer<Price>.Create((x, y) => y.CompareTo(x)) : null;
+            var combinedLevels = new SortedDictionary<Price, DepthLevel>(levels, sort);
+            excessLevels.ToList().ForEach(x => combinedLevels.Add(x.Key, x.Value));
+            combinedLevels.Remove(level.Price);
+            ++LastChange;
+            levels.Clear();
+            excessLevels.Clear();
+            combinedLevels.Take(_size).ToList().ForEach(x =>
             {
-                if (isBid)
-                {
-                    _excessBidLevels.Remove(level.Price);
-                }
-                else
-                {
-                    _excessAskLevels.Remove(level.Price);
-                }
-            }
-            else
+                if(isBid && level.Price > x.Value.Price) x.Value.LastChange = LastChange;
+                if(!isBid && level.Price < x.Value.Price) x.Value.LastChange = LastChange;
+                x.Value.IsExcess = false;
+                levels.Add(x.Key, x.Value);
+            });
+            combinedLevels.Skip(_size).ToList().ForEach(x =>
             {
-                ++LastChange;
-                var levels = isBid ? Bids : Asks;
-                var excessLevels = isBid ? _excessBidLevels : _excessAskLevels;
-
-                foreach (KeyValuePair<Price,DepthLevel> depthLevel in levels)
-                {
-                    if (isBid && level.Price > depthLevel.Value.Price)
-                    {
-                        depthLevel.Value.LastChange = LastChange;
-                    }
-
-                    if (!isBid && level.Price < depthLevel.Value.Price)
-                    {
-                        depthLevel.Value.LastChange = LastChange;
-                    }
-                }
-
-                levels.Remove(level.Price);
-                
-                if(excessLevels.Count == 0) return;
-                var replacementLevel = excessLevels.First().Value;
-                replacementLevel.LastChange = LastChange;
-                levels[replacementLevel.Price] = replacementLevel;
-            }
+                x.Value.IsExcess = true;
+                excessLevels.Add(x.Key, x.Value);
+            });
         }
 
         private static Price LastLevel(SortedDictionary<Price, DepthLevel> levels)
